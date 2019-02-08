@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Personal Health Care</title>
+    <link rel="stylesheet" href="css/jquery.mobile-1.4.5.min.css">
+    <link rel="stylesheet" href="css/normalize.css">
+    <link rel="stylesheet" href="css/foundation.min.css">
+    <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/industrial.css">
+    <link rel="stylesheet" href="css/introjs.min.css">
+    <link rel="stylesheet" href="css/foundation.css">
+    <link rel="stylesheet" href="css/myApp.css">
+</head>
+
+<body>
+    <button class="tablink" onclick="openPage('Home', this, 'lightyellow')" id="defaultOpen">Temperature</button> 
+
+    <button class="tablink" onclick="openPage('News', this, 'lightblue')">Record</button>
+    <button class="tablink" onclick="openPage('Contact', this, 'lightgreen')">Contact</button>
+   
+    <div id="Home" class="tabcontent" align="center">
+   <div data-role="header">
+    
+    <p style="color: blue;"> 123</p>
+  </div> 
+
+        <h4 style="font-size: 1rem;">Temperature<span class="Temp-value" style="font-size: 2rem;">0.0</span><span style="font-size: 2rem;">&#8451;</span></h4>
+        <td>
+            <div id="thermal" align="center"  box-shadow:  "2px 2px 5px 0px #555">
+                <div class="industrial thermometer size two">
+                    <span class="ticks" data-amount="10">
+
+			<div class="tick" style="height: 2%; margin-bottom: 113%;"></div>
+			<div class="tick" style="height: 2%; margin-bottom: 113%;"></div>
+			<div class="tick" style="height: 2%; margin-bottom: 113%;"></div>
+			<div class="tick" style="height: 2%; margin-bottom: 113%;"></div>
+			<div class="tick" style="height: 2%; margin-bottom: 113%;"></div>
+			<div class="tick" style="height: 2%; margin-bottom: 113%;"></div>
+			<div class="tick" style="height: 2%; margin-bottom: 113%;"></div>
+			<div class="tick" style="height: 2%; margin-bottom: 113%;"></div>
+			<div class="tick" style="height: 2%; margin-bottom: 113%;"></div> 
+			<div class="tick" style="height: 2%; margin-bottom: 113%;"></div> 
+			</span>
+                    <div class="space style=" height: 100%; "></div>
+			<div class="meter danger "></div>  <!-- change coloer herer meter {danger,safe,...}" see 'industrial.css' -->
+                    
+                </div>
+            </div>
+        </td>
+    </div>
+    <div id="News" class="tabcontent">
+        <div id="chartContainer" style="height: 200px; width: 100%;"></div>
+        <script src="https://canvasjs.com/assets/script/canvasjs.min.js"></script>
+        
+    </div>
+    <div id="Contact" class="tabcontent">
+        <h3>Contact</h3>
+        <p style="color:darkblue"> Designed by Patrick</p>
+    </div>
+    <div id="About" class="tabcontent">
+        <h3>About</h3>
+        <p>Who we are and what we do.</p>
+    </div>
+    <script>
+    <!--  -->
+    function draw_bar(val) {
+        var x0 = 339 - val;
+        var xx = val;
+        var pr = Math.round(val / 3.4);
+
+        $("#ww").attr("x", xx.toString());
+        $("#ww").attr("width", x0.toString());
+        $("#pr").text(pr.toString() + '%');
+    }
+    draw_bar(150);
+    <!-- -->
+    function btn_set(s) {
+        s.forEach(function(e) {
+            if (e.name == 'HC-05') {
+                s = '<BUTTON class=ui-btn type=submit>' + e.name + ' ' + e.address + '</BUTTON>';
+                $('#tx').append(s);
+            }
+        });
+        //---
+        var tx_bk;
+
+        function bt_read(c) {
+            tx_bk = $(c).text();
+            $(c).text('Disconnect');
+            bts = bluetoothSerial.subscribe;
+            bts('\n', function(data) {
+                $('p').text(data);
+                add_pt(data);
+            });
+        }
+
+        function bt_conn(c, address) {
+            bluetoothSerial.connect(
+                address, // device to connect to
+                bt_read(c), // start listening if you succeed
+                function() { alert('Failure'); }
+            );
+        }
+        //---
+        $('button').click(function() {
+            var t = $(this).text();
+            if (t == 'Disconnect') {
+                $(this).text(tx_bk);
+                bluetoothSerial.disconnect(function() { $('p').text('Disconnect'); }, false);
+                //alert('Disconnect');
+                //confirm('Disconnect');
+            } else {
+                $('p').text($(this).text());
+                addr = $(this).text().split(' ')[1];
+                bt_conn(this, addr);
+                cnt = 0, tt = 0;
+            }
+        });
+        //---
+    }
+    </script>
+    <script type="text/javascript">
+    var cnt2 = 0;
+
+    function cnt_set() {
+        if (pmin > 2000) { cnt2++; } else { cnt++; }
+        var s = cnt.toString();
+        //+' eng '+(tt).toString()+' '+(pmax-pmin).toString();
+        $('#cnt').text(s);
+        $('#cnt2').text(cnt2.toString());
+        draw_bar(tt / 10);
+    }
+    var pmax = 0,
+        pmin = 10000;
+    var ud = 0,
+        lv = 800,
+        cnt = 0,
+        tt = 0;
+    var k10 = 0.0;
+
+    function peak_proc(v) {
+        k10 += v;
+        if (k10 > 10000.0) { tt++;
+            k10 -= 10000.0;
+            $("#dbg").text(k10.toString() + ' ' + tt.toString()); }
+        if (ud == 0) {
+            if (v < pmin) { pmin = v; } else {
+                if ((v - pmin) > lv) {
+                    cnt_set();
+                    pmax = pmin;
+                    ud = 1;
+                }
+            }
+        } else {
+            if (v > pmax) { pmax = v; } else {
+                if (pmax - v) {
+                    ud = 0;
+                    pmin = pmax;
+                }
+            }
+        }
+    }
+    var x0 = 0,
+        y0 = 0,
+        z0 = 0;
+    var dx = 0,
+        dy = 0,
+        dz = 0;
+    var gg = [];
+   // var s = 29.5;
+
+    function data_proc(s) {
+        return s;
+
+    }
+
+    function draw(ds) {
+        nn = 0;
+        var s = "0,199 ";
+        var xx = 0;
+        var d1 = ds[0],
+            d0 = ds[0];
+        var mx = 0,
+            mn = 0,
+            dn = 0;
+        ds.forEach(function(e) {
+            s += xx.toString() + ',' + e.toString() + ' ';
+            xx += gap;
+            d0 = d1;
+            d1 = e;
+            dd = d1 - d0;
+        });
+        xx -= gap;
+        s += xx.toString() + ',199';
+        $("#pary").attr("points", s);
+    }
+    var ds = [];
+    var ymax = 15000;
+    var ymin = 0;
+    var hh = 200;
+    var sc = (ymax - ymin) / hh;
+    var gap = 1;
+    var ww = 350 / gap;
+    var nn = 0;
+
+    function add_pt(p) {
+        var v;
+        try { v = data_proc(p); } catch (e) { return; }
+        peak_proc(v);
+        v = (v - ymin) / sc;
+        v = hh - v;
+        //---
+        ds.push(Math.round(v));
+        if (ds.length > ww) { ds.shift(); }
+        nn++;
+        if (nn < 10) { return; }
+        draw(ds);
+    }
+
+function renew(){
+ymax = $("#rb").val();
+ymin = $("#ra").val();
+sc = (ymax-ymin)/hh;
+}
+
+
+
+  //  setInterval(myfunction, 2000);
+
+    function myfunction() {
+        var a = data_proc(s);
+       
+        var range = 100 - (a - 20) * 100 / 10; 
+
+        text = "height: " + range + "%;";
+        $("#thermal" + ' .space').attr("style", text);
+      
+        $('.Temp-value').html(a);
+    };
+
+
+
+
+    window.onload = function() { 
+        var dps = []; // dataPoints
+        var chart = new CanvasJS.Chart("chartContainer", {
+            title: {
+                text: "Temperature Record",
+            },
+            axisX: {
+                internval: "day",
+                valueFormatString: "MM/DD HH:MM",
+                labelAngle: -50
+            },
+            axisY: {
+
+                includeZero: false
+            },
+            data: [{
+                type: "spline",
+                dataPoints: dps
+            }]
+        });
+
+        var xVal = 0;
+        var yVal = 100;
+        var updateInterval = 1000;
+        var dataLength = 10; // number of dataPoints visible at any point
+
+        var updateChart = function(count) {
+
+            count = count || 1;
+
+            for (var j = 0; j < count; j++) {
+                yVal = yVal + Math.round(5 + Math.random() * (-5 - 5));
+
+                dps.push({
+                    x: new Date(5, xVal++),
+                    y: yVal
+                });
+
+            }
+
+            if (dps.length > dataLength) {
+                dps.shift();
+            }
+
+            chart.render();
+        };
+
+        updateChart(dataLength);
+        setInterval(function() { updateChart() }, updateInterval);
+
+    }
+    </script>
+    <script type="text/javascript" src="js/jquery-2.1.4.min.js"></script>
+    <script type="text/javascript" src="js/socket.io.js"></script>
+    <script type="text/javascript" src="js/myApp.js"></script>
+    <script type="text/javascript" src="js/index.js"></script>
+    <script>
+    app.initialize();
+    </script>
+</body>
+
+</html>
